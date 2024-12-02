@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Regnskap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="number"], input[type="date"], button, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .player-log, .table-log {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .result-details {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e9e9e9;
+            border-radius: 5px;
+        }
+        .total-purchase {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Poker Regnskap</h1>
+
+        <!-- Legg til spillere -->
+        <h3>Legg til ny spiller</h3>
+        <input type="text" id="playerName" placeholder="Spillernavn">
+        <button onclick="addPlayer()">Legg til spiller</button>
+
+        <!-- Opprett bord -->
+        <h3>Opprett nytt bord</h3>
+        <input type="text" id="tableName" placeholder="Bordnavn">
+        <input type="date" id="tableDate">
+        <button onclick="addTable()">Opprett bord</button>
+
+        <!-- Registrer transaksjoner -->
+        <h3>Legg til transaksjon</h3>
+        <select id="tableSelect">
+            <option value="">Velg bord</option>
+        </select>
+        <select id="playerSelect">
+            <option value="">Velg spiller</option>
+        </select>
+        <select id="transactionType">
+            <option value="innkjøp">Innkjøp</option>
+            <option value="utveksling">Utveksling</option>
+        </select>
+        <input type="number" id="amount" placeholder="Beløp">
+        <button onclick="addTransaction()">Legg til transaksjon</button>
+
+        <!-- Oversikt for spillere -->
+        <h3>Spillere</h3>
+        <div id="playersLog"></div>
+
+        <!-- Oversikt for bord -->
+        <h3>Bord</h3>
+        <div id="tablesLog"></div>
+
+        <!-- Detaljert oversikt -->
+        <div id="tableDetails" class="result-details" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Hent data fra localStorage ved start
+        const players = JSON.parse(localStorage.getItem('players')) || {};
+        const tables = JSON.parse(localStorage.getItem('tables')) || {};
+
+        // Oppdater spillere i localStorage
+        function savePlayersToLocalStorage() {
+            localStorage.setItem('players', JSON.stringify(players));
+        }
+
+        // Oppdater bord i localStorage
+        function saveTablesToLocalStorage() {
+            localStorage.setItem('tables', JSON.stringify(tables));
+        }
+
+        function addPlayer() {
+            const playerNameInput = document.getElementById("playerName");
+            const playerName = playerNameInput.value.trim();
+
+            if (!playerName) {
+                alert("Vennligst skriv inn et spillernavn.");
+                return;
+            }
+
+            if (players[playerName]) {
+                alert("Spilleren eksisterer allerede.");
+                return;
+            }
+
+            players[playerName] = { total: 0 };
+
+            const playerSelect = document.getElementById("playerSelect");
+            const option = document.createElement("option");
+            option.value = playerName;
+            option.textContent = playerName;
+            playerSelect.appendChild(option);
+
+            savePlayersToLocalStorage();
+            updatePlayerLog();
+            playerNameInput.value = "";
+        }
+
+        function addTable() {
+            const tableNameInput = document.getElementById("tableName");
+            const tableDateInput = document.getElementById("tableDate");
+            const tableName = tableNameInput.value.trim();
+            const tableDate = tableDateInput.value;
+
+            if (!tableName || !tableDate) {
+                alert("Vennligst fyll ut både bordnavn og dato.");
+                return;
+            }
+
+            const tableKey = `${tableName} (${tableDate})`;
+
+            if (tables[tableKey]) {
+                alert("Dette bordet eksisterer allerede.");
+                return;
+            }
+
+            tables[tableKey] = { transactions: [], totalPurchase: 0 };
+
+            const tableSelect = document.getElementById("tableSelect");
+            const option = document.createElement("option");
+            option.value = tableKey;
+            option.textContent = tableKey;
+            tableSelect.appendChild(option);
+
+            saveTablesToLocalStorage();
+            tableNameInput.value = "";
+            tableDateInput.value = "";
+            updateTableLog();
+        }
+
+        function addTransaction() {
+            const tableKey = document.getElementById("tableSelect").value;
+            const playerName = document.getElementById("playerSelect").value;
+            const transactionType = document.getElementById("transactionType").value;
+            const amount = parseFloat(document.getElementById("amount").value);
+
+            if (!tableKey || !playerName || !transactionType || isNaN(amount) || amount <= 0) {
+                alert("Vennligst fyll ut alle feltene for å legge til en transaksjon.");
+                return;
+            }
+
+            const table = tables[tableKey];
+            const player = players[playerName];
+
+            table.transactions.push({ playerName, transactionType, amount });
+
+            if (transactionType === "innkjøp") {
+                player.total -= amount;
+                table.totalPurchase += amount;
+            } else if (transactionType === "utveksling") {
+                player.total += amount;
+            }
+
+            savePlayersToLocalStorage();
+            saveTablesToLocalStorage();
+            updatePlayerLog();
+            updateTableLog();
+            alert(`Transaksjon lagt til: ${playerName} (${transactionType}) - ${amount} kr`);
+        }
+
+        function updatePlayerLog() {
+            const playersLog = document.getElementById("playersLog");
+            playersLog.innerHTML = "";
+
+            for (const [name, { total }] of Object.entries(players)) {
+                const div = document.createElement("div");
+                div.className = "player-log";
+                div.textContent = `${name}: ${total} kr`;
+                playersLog.appendChild(div);
+            }
+        }
+
+        function updateTableLog() {
+            const tablesLog = document.getElementById("tablesLog");
+            tablesLog.innerHTML = "";
+
+            for (const [tableKey, { totalPurchase }] of Object.entries(tables)) {
+                const div = document.createElement("div");
+                div.className = "table-log";
+                div.innerHTML = `
+                    <div><strong>${tableKey}</strong></div>
+                    <div class="total-purchase">Total innkjøp: ${totalPurchase} kr</div>
+                `;
+                tablesLog.appendChild(div);
+            }
+        }
+
+        updatePlayerLog();
+        updateTableLog();
+    </script>
+</body>
+</html>
